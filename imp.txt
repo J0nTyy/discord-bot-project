@@ -1,3 +1,1 @@
 URL = https://discord.com/oauth2/authorize?client_id=1234809814199177307&permissions=603621212813632&scope=bot
-
-Token = MTIzNDgwOTgxNDE5OTE3NzMwNw.GTp_iq.f7mV2bzRCe-4ZRv4ySRMPxEUNwIjQpp1oDq-P8

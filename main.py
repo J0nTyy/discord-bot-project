@@ -1,12 +1,11 @@
 from discord.ext import commands
-from dotenv import load_dotenv
 import discord
 import asyncio
 import yt_dlp
 import urllib.parse
 
+TOKEN = "PASTE TOKEN HERE"
 
-TOKEN = "MTIzNDgwOTgxNDE5OTE3NzMwNw.GTp_iq.f7mV2bzRCe-4ZRv4ySRMPxEUNwIjQpp1oDq-P8"
 intents = discord.Intents.default()
 intents.message_content = True
 client = commands.Bot(command_prefix=".", intents=intents)
