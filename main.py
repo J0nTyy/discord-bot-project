@@ -4,6 +4,8 @@ import discord
 from discord.ext import commands
 import yt_dlp
 import asyncio
+from lyrics_provider import LyricsProvider
+
 
 load_dotenv()
 TOKEN = os.getenv('TOKEN')
@@ -14,6 +16,8 @@ client = commands.Bot(command_prefix=".", intents=intents)
 
 voice_clients = {}
 queues = {}
+current_song = []
+lyrics_provider = LyricsProvider()
 
 yt_dl_options = {"format": "bestaudio/best"}
 ytdl = yt_dlp.YoutubeDL(yt_dl_options)
@@ -28,7 +32,7 @@ async def send_song_embed(ctx, data):
 
     title = info.get('title')
     url = info.get('webpage_url')
-
+    current_song.append(title)
     embed = discord.Embed(title="Now Playing" if ctx.command.name == "play" or ctx.command.name == "skip" else "Added to Queue",
                           description=f"[{title}]({url})", color=discord.Color.blue())
     embed.set_thumbnail(url=info.get('thumbnail'))
@@ -44,7 +48,7 @@ async def play_next(ctx):
 
         song = data['url']
         player = discord.FFmpegOpusAudio(song, **ffmpeg_options)
-
+        del current_song[0]
         voice_clients[ctx.guild.id].play(player, after=lambda e: asyncio.create_task(play_next(ctx)))
         await send_song_embed(ctx, data)
 
@@ -77,6 +81,7 @@ async def play(ctx, *, url):
         ctx.send("Song added to queue!")
     else:
         voice_clients[ctx.guild.id].play(player, after=lambda e: asyncio.create_task(play_next(ctx)))
+        
         await send_song_embed(ctx, data)
 
 @client.command(name="queue")
@@ -132,5 +137,23 @@ async def resume(ctx):
         voice_clients[ctx.guild.id].resume()
     else:
         await ctx.send("There is no song to resume!")
+
+@client.command(name="lyrics")
+async def lyrics(ctx):
+    # Split the arguments by " - " to separate the artist and title
+    try:
+        print(current_song[0])
+        artist, title = current_song[0].split(' - ')
+        print(artist, title)
+        lyrics = lyrics_provider.get_lyrics(artist, title)
+        
+        if lyrics:
+            # Split lyrics into chunks if they're too long for a single message
+            for chunk in [lyrics[i:i+2000] for i in range(0, len(lyrics), 2000)]:
+                await ctx.send(chunk)
+        else:
+            await ctx.send("Lyrics not found for {} - {}.".format(artist, title))
+    except Exception as e:
+        print(e)
 
 client.run(TOKEN)
