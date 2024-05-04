@@ -99,7 +99,7 @@ async def queue(ctx, *, search):
     else:
         await ctx.send("There is no queue to add to!")
 
-@client.command(name="clear_queue")
+@client.command(name="clear")
 async def clear_queue(ctx):
     if ctx.guild.id in queues:
         queues[ctx.guild.id].clear()
