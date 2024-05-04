@@ -8,6 +8,7 @@ This project is a Discord bot designed to provide music playback functionality w
 - Pause, resume, and skip tracks.
 - Queue management with the ability to clear the current queue.
 - Automatic playback of the next item in the queue.
+- Send lyrics of a track in discord as a message.
 
 ## Setup
 
