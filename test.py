@@ -1,4 +1,4 @@
-from lyrics_provider import LyricsProvider
+from lyrics_command import LyricsProvider
 
 lyrics_provider = LyricsProvider()
 
