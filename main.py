@@ -4,8 +4,8 @@ import discord
 from discord.ext import commands
 import yt_dlp
 import asyncio
-from lyrics_provider import LyricsProvider
-
+from lyrics_command import LyricsCommand
+from embedder import MusicEmbeds
 
 load_dotenv()
 TOKEN = os.getenv('TOKEN')
@@ -14,29 +14,29 @@ intents = discord.Intents.default()
 intents.message_content = True
 client = commands.Bot(command_prefix=".", intents=intents)
 
+lyrics_obj = LyricsCommand(client)
+
 voice_clients = {}
 queues = {}
-current_song = []
-lyrics_provider = LyricsProvider()
 
 yt_dl_options = {"format": "bestaudio/best"}
 ytdl = yt_dlp.YoutubeDL(yt_dl_options)
 
 ffmpeg_options = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn -filter:a "volume=0.25"'}
 
-async def send_song_embed(ctx, data):
-    if 'entries' in data:
-        info = data['entries'][0]
-    else:
-        info = data
+# async def send_song_embed(ctx, data):
+#     if 'entries' in data:
+#         info = data['entries'][0]
+#     else:
+#         info = data
 
-    title = info.get('title')
-    url = info.get('webpage_url')
-    current_song.append(title)
-    embed = discord.Embed(title="Now Playing" if ctx.command.name == "play" or ctx.command.name == "skip" else "Added to Queue",
-                          description=f"[{title}]({url})", color=discord.Color.blue())
-    embed.set_thumbnail(url=info.get('thumbnail'))
-    await ctx.send(embed=embed)
+#     title = info.get('title')
+#     url = info.get('webpage_url')
+
+#     embed = discord.Embed(title="Now Playing" if ctx.command.name == "play" or ctx.command.name == "skip" else "Added to Queue",
+#                           description=f"[{title}]({url})", color=discord.Color.blue())
+#     embed.set_thumbnail(url=info.get('thumbnail'))
+#     await ctx.send(embed=embed)
 
 async def play_next(ctx):
     if queues[ctx.guild.id]:
@@ -48,9 +48,9 @@ async def play_next(ctx):
 
         song = data['url']
         player = discord.FFmpegOpusAudio(song, **ffmpeg_options)
-        del current_song[0]
-        voice_clients[ctx.guild.id].play(player, after=lambda e: asyncio.create_task(play_next(ctx)))
-        await send_song_embed(ctx, data)
+
+        voice_clients[ctx.guild.id].play(player, after=lambda e: asyncio.run_coroutine_threadsafe(play_next(ctx), client.loop))
+        await MusicEmbeds.send_song_embed(ctx, data)
 
 @client.event
 async def on_ready():
@@ -68,9 +68,12 @@ async def play(ctx, *, url):
 
     if not url.startswith("http"):
         url = f"ytsearch:{url}"
+        
+    searching_message = await ctx.send("Looking for the song...")  # Inform the user that the bot is searching for the song
 
     data = await asyncio.to_thread(ytdl.extract_info, url, download=False)
-
+    await searching_message.delete()
+    
     if 'entries' in data:
         data = data['entries'][0]
 
@@ -78,24 +81,29 @@ async def play(ctx, *, url):
     player = discord.FFmpegOpusAudio(song, **ffmpeg_options)
 
     if voice_clients[ctx.guild.id].is_playing():
-        ctx.send("Song added to queue!")
+        ctx.send("Use `.queue` to add to queue!")
     else:
-        voice_clients[ctx.guild.id].play(player, after=lambda e: asyncio.create_task(play_next(ctx)))
+        voice_clients[ctx.guild.id].play(player, after=lambda e: asyncio.run_coroutine_threadsafe(play_next(ctx), client.loop))
         
-        await send_song_embed(ctx, data)
+        await MusicEmbeds.send_song_embed(ctx, data)
 
 @client.command(name="queue")
 async def queue(ctx, *, search):
     if ctx.guild.id in queues:
         if not search.startswith("http"):
             search = f"ytsearch:{search}"
+            
+        searching_message = await ctx.send("Adding the song to the queue...")  # Inform the user that the bot is queuing the song
+
         queues[ctx.guild.id].append(search)
         data = await asyncio.to_thread(ytdl.extract_info, search, download=False)
+        
+        await searching_message.delete()  # Delete the searching message after the song is queued
 
         if 'entries' in data:
             data = data['entries'][0]
 
-        await send_song_embed(ctx, data)
+        await MusicEmbeds.send_song_embed(ctx, data)
     else:
         await ctx.send("There is no queue to add to!")
 
@@ -139,21 +147,12 @@ async def resume(ctx):
         await ctx.send("There is no song to resume!")
 
 @client.command(name="lyrics")
-async def lyrics(ctx):
-    # Split the arguments by " - " to separate the artist and title
+async def lyrics(ctx, *, arg):
     try:
-        print(current_song[0])
-        artist, title = current_song[0].split(' - ')
-        print(artist, title)
-        lyrics = lyrics_provider.get_lyrics(artist, title)
-        
-        if lyrics:
-            # Split lyrics into chunks if they're too long for a single message
-            for chunk in [lyrics[i:i+2000] for i in range(0, len(lyrics), 2000)]:
-                await ctx.send(chunk)
-        else:
-            await ctx.send("Lyrics not found for {} - {}.".format(artist, title))
-    except Exception as e:
-        print(e)
+        title, artist = arg.split(' - ')
+        await lyrics_obj.send_lyrics(ctx, artist, title)
+
+    except ValueError:
+        await ctx.send("Please use the format `.lyrics <songname> - <artist>`.")
 
 client.run(TOKEN)
