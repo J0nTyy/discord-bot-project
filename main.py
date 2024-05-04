@@ -24,20 +24,6 @@ ytdl = yt_dlp.YoutubeDL(yt_dl_options)
 
 ffmpeg_options = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn -filter:a "volume=0.25"'}
 
-# async def send_song_embed(ctx, data):
-#     if 'entries' in data:
-#         info = data['entries'][0]
-#     else:
-#         info = data
-
-#     title = info.get('title')
-#     url = info.get('webpage_url')
-
-#     embed = discord.Embed(title="Now Playing" if ctx.command.name == "play" or ctx.command.name == "skip" else "Added to Queue",
-#                           description=f"[{title}]({url})", color=discord.Color.blue())
-#     embed.set_thumbnail(url=info.get('thumbnail'))
-#     await ctx.send(embed=embed)
-
 async def play_next(ctx):
     if queues[ctx.guild.id]:
         next_item = queues[ctx.guild.id].pop(0)
