@@ -19,7 +19,20 @@ lyrics_obj = LyricsCommand(client)
 voice_clients = {}
 queues = {}
 
-yt_dl_options = {"format": "bestaudio/best"}
+PLAY = "p"
+PAUSE = "s"
+RESUME = "c"
+SKIP = "n"
+QUEUE = "q"
+CLEAR = "purge"
+STOP = "l"
+
+yt_dl_options = {
+    "format": "m4a/bestaudio/best",
+    "retries": 3,
+    "no_playlist": True
+}
+
 ytdl = yt_dlp.YoutubeDL(yt_dl_options)
 
 ffmpeg_options = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn -filter:a "volume=0.25"'}
@@ -42,7 +55,7 @@ async def play_next(ctx):
 async def on_ready():
     print(f'{client.user} is now jamming')
 
-@client.command(name="play")
+@client.command(name=PLAY)
 async def play(ctx, *, url):
     if ctx.author.voice is None:
         await ctx.send("You need to be in a voice channel to play music!")
@@ -67,13 +80,13 @@ async def play(ctx, *, url):
     player = discord.FFmpegOpusAudio(song, **ffmpeg_options)
 
     if voice_clients[ctx.guild.id].is_playing():
-        ctx.send("Use `.queue` to add to queue!")
+        await ctx.send("Use `.queue` to add to queue!")
     else:
         voice_clients[ctx.guild.id].play(player, after=lambda e: asyncio.run_coroutine_threadsafe(play_next(ctx), client.loop))
         
         await MusicEmbeds.send_song_embed(ctx, data)
 
-@client.command(name="queue")
+@client.command(name=QUEUE)
 async def queue(ctx, *, search):
     if ctx.guild.id in queues:
         if not search.startswith("http"):
@@ -93,7 +106,7 @@ async def queue(ctx, *, search):
     else:
         await ctx.send("There is no queue to add to!")
 
-@client.command(name="clear")
+@client.command(name=CLEAR)
 async def clear_queue(ctx):
     if ctx.guild.id in queues:
         queues[ctx.guild.id].clear()
@@ -101,7 +114,7 @@ async def clear_queue(ctx):
     else:
         await ctx.send("There is no queue to clear!")
 
-@client.command(name="stop")
+@client.command(name=STOP)
 async def stop(ctx):
     if ctx.guild.id in voice_clients:
         voice_clients[ctx.guild.id].stop()
@@ -110,7 +123,7 @@ async def stop(ctx):
     else:
         await ctx.send("There is no song to stop!")
 
-@client.command(name="skip")
+@client.command(name=SKIP)
 async def skip(ctx):
     if ctx.guild.id in voice_clients:
         voice_clients[ctx.guild.id].stop()
@@ -118,14 +131,14 @@ async def skip(ctx):
     else:
         await ctx.send("There is no song to skip!")
 
-@client.command(name="pause")
+@client.command(name=PAUSE)
 async def pause(ctx):
     if ctx.guild.id in voice_clients:
         voice_clients[ctx.guild.id].pause()
     else:
         await ctx.send("There is no song to pause!")
 
-@client.command(name="resume")
+@client.command(name=RESUME)
 async def resume(ctx):
     if ctx.guild.id in voice_clients:
         voice_clients[ctx.guild.id].resume()
