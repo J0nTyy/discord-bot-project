@@ -55,7 +55,7 @@ async def play_next(ctx):
 async def on_ready():
     print(f'{client.user} is now jamming')
 
-@client.command(name=PLAY)
+@client.group(name='play', invoke_without_command=True)
 async def play(ctx, *, url):
     if ctx.author.voice is None:
         await ctx.send("You need to be in a voice channel to play music!")
@@ -80,11 +80,15 @@ async def play(ctx, *, url):
     player = discord.FFmpegOpusAudio(song, **ffmpeg_options)
 
     if voice_clients[ctx.guild.id].is_playing():
-        await ctx.send("Use `.queue` to add to queue!")
+        await ctx.send("Use `.q` to add to queue.")
     else:
         voice_clients[ctx.guild.id].play(player, after=lambda e: asyncio.run_coroutine_threadsafe(play_next(ctx), client.loop))
         
         await MusicEmbeds.send_song_embed(ctx, data)
+        
+@client.command(name='p')
+async def play_p(ctx, *, url):
+    await play(ctx, url=url)
 
 @client.command(name=QUEUE)
 async def queue(ctx, *, search):
@@ -144,6 +148,20 @@ async def resume(ctx):
         voice_clients[ctx.guild.id].resume()
     else:
         await ctx.send("There is no song to resume!")
+
+@client.command(name='view')
+async def view_queue(ctx):
+    if ctx.guild.id in queues and queues[ctx.guild.id]:
+        message = "Current Queue:\n"
+        for index, url in enumerate(queues[ctx.guild.id], start=1):
+            # Run the info extraction in a separate thread to avoid blocking
+            data = await asyncio.to_thread(ytdl.extract_info, url, download=False)
+            title = data.get('title', 'No title found') if 'entries' not in data else data['entries'][0].get('title', 'No title found')
+            message += f"{index}. {title}\n"
+    else:
+        message = "The queue is empty!"
+
+    await ctx.send(message)
 
 @client.command(name="lyrics")
 async def lyrics(ctx, *, arg):
